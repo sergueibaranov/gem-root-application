@@ -21,38 +21,77 @@
 #include <TApplication.h>
 #include <TString.h>
 
+
+/**
+* ... Threshold Scan ROOT based application, could be used for analisys of XDAQ GEM data ...
+*/
+
+/*! \file */
+/*! \brief VFAT2 data reading example.
+VFAT2 data reading example for Threshold Scan XDAQ GEM application.
+*/
+
 using namespace std;
+
+//! GEM VFAT2 Data class.
+/*!
+  \class VFAT2Data
+  contents VFAT2 GEM data format 
+*/
 
 class VFAT2Data {
   public:
 
+    //! VFAT2 Channel data.
+    /*!
+      contents VFAT2 128 channels data in two 64 bits words.
+    */
+
     struct ChannelData {
-      uint64_t lsData;  // ch1to64
-      uint64_t msData;  // ch65to128
-      double delVT;   // deviceVT2-deviceVT1, Threshold Scan needs
+      uint64_t lsData;  /*!<lsData value, bits from 1to64. */ 
+      uint64_t msData;  /*!<msData value, bits from 65to128. */
+      double delVT;     /*!<delVT = deviceVT2-deviceVT1, Threshold Scan needs this value. */
     };
 
+    //! GEM Event Data Format (one chip data)
+    /*! 
+      Uncoding of VFAT2 data for one chip, data format.
+      \image html vfat2.data.format.png
+    */
+
     struct VFATEvent {
-      uint16_t BC;      // 1010:4, BC:12 
-      uint16_t EC;      // 1100:4, EC:8, Flags:4
-      uint32_t bxExp;   // :28
-      uint16_t bxNum;   // :6, Sbit:6
-      uint16_t ChipID;  // 1110, :12
-      ChannelData data;
-      uint16_t crc;     // :16
+      uint16_t BC;      /*!<Banch Crossing number "BC" 16 bits, : 1010:4 (control bits), BC:12 */
+      uint16_t EC;      /*!<Event Counter "EC" 16 bits: 1100:4(control bits) , EC:8, Flags:4 */
+      uint32_t bxExp;   /*!<bxExp  32 bits :28 */
+      uint16_t bxNum;   /*!<Event Number & SBit, 16 bits : bxNum:6, SBit:6 */
+      uint16_t ChipID;  /*!<ChipID 16 bits, 1110:4 (control bits), ChipID:12 */
+      ChannelData data; /*!<ChannelData channels data */
+      uint16_t crc;     /*!<Checksum number, CRC:16 */
     };    
 
+    /*
     struct GEMEvent {
       uint32_t header1;
       std::vector<VFATEvent> vfats;
       uint32_t trailer1;
     } GEMEvent;
-        
+    */
+   
+    //! Application header struct
+    /*!
+      \brief AppHeader contens Threshold scan parameters
+    */
+
     struct AppHeader {  
-      int minTh;
-      int maxTh;
-      int stepSize;
+      int minTh;     /*!<minTh minimal threshold value. */ 
+      int maxTh;     /*!<maxTh maximal threshold value. */ 
+      int stepSize;  /*!<stepSize threshold ste size value. */
     };
+
+    //! Print Event, "hex" format.
+    /*! 
+      Print VFAT2 event.
+    */
 
     bool Print(int event, const VFATEvent& ev, const ChannelData& ch){
       if( event<0 ) return(false);
@@ -68,6 +107,11 @@ class VFAT2Data {
       cout << ch.delVT << endl;
     };
 
+    //! Print ChipID.
+    /*! 
+      Print ChipID "hex" number and control bits "1110"
+    */
+
     bool PrintChipID(int event, const VFATEvent& ev, const ChannelData& ch){
       if( event<0 ) return(false);
       cout << "\nevent " << event << endl;
@@ -76,6 +120,11 @@ class VFAT2Data {
       cout << hex << "1110 0x0" << ((ev.ChipID&0xF000)>>12) << " ChipID 0x" << (ev.ChipID&0x0FFF) << dec << endl;
     };
 
+    //! Read 1-128 channels data
+    /*!
+    reading two 64 bits words (lsData & msData) with data from all channels for one VFAT2 chip 
+    */
+
     bool readData(ifstream& inpf, int event, ChannelData& ch){
       if(event<0) return(false);
       inpf >> hex >> ch.lsData;
@@ -83,6 +132,11 @@ class VFAT2Data {
       inpf >> ch.delVT;
       return(true);
     };	  
+
+    //! Read GEM event data
+    /*!
+      reading GEM VFAT2 data (BC,EC,bxNum,ChipID,(lsData & msData), crc.
+    */
 
     bool readEvent(ifstream& inpf, int event, VFATEvent& ev, ChannelData& ch){
       if(event<0) return(false);
@@ -96,12 +150,22 @@ class VFAT2Data {
       return(true);
       };	  
 
+    //! read Threshold scan header.
+    /*!
+      reading of Threshold Scan setup header
+    */
+
     bool readHeader(ifstream& inpf, AppHeader& ah){
       inpf >> ah.minTh;
       inpf >> ah.maxTh;
       inpf >> ah.stepSize;
       return(true);
     };	  
+
+    //! showbits function.
+    /*!
+    show bits function, needs for debugging
+    */
 
     void showbits(uint8_t x)
     { int i; 
@@ -111,9 +175,17 @@ class VFAT2Data {
     };
 };
 
-
+//! root function.
+/*!
+https://root.cern.ch/drupal/content/documentation
+*/
 
 TROOT root("",""); // static TROOT object
+
+//! main function.
+/*!
+C++ any documents
+*/
 
 int main(int argc, char** argv)
 #else
