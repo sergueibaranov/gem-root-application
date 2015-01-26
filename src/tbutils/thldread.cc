@@ -27,16 +27,25 @@
 */
 
 /*! \file */
-/*! \brief VFAT2 data reading example.
-VFAT2 data reading example for Threshold Scan XDAQ GEM application.
+/*! 
+  \mainpage Threshold Scan ROOT based application, example.
+
+  VFAT2 data reading example for Threshold Scan XDAQ GEM application.
+  \section intro_sec Introduction
+
+  This is the introduction.
+
+  \section install_sec Installation
+  \author Sergey.Baranov@cern.ch
 */
 
 using namespace std;
 
 //! GEM VFAT2 Data class.
 /*!
-  \class VFAT2Data
+  \brief VFAT2Data
   contents VFAT2 GEM data format 
+  \author Sergey.Baranov@cern.ch
 */
 
 class VFAT2Data {
@@ -57,12 +66,13 @@ class VFAT2Data {
     /*! 
       Uncoding of VFAT2 data for one chip, data format.
       \image html vfat2.data.format.png
+      \author Sergey.Baranov@cern.ch
     */
 
     struct VFATEvent {
       uint16_t BC;      /*!<Banch Crossing number "BC" 16 bits, : 1010:4 (control bits), BC:12 */
       uint16_t EC;      /*!<Event Counter "EC" 16 bits: 1100:4(control bits) , EC:8, Flags:4 */
-      uint32_t bxExp;   /*!<bxExp  32 bits :28 */
+      uint32_t bxExp;   
       uint16_t bxNum;   /*!<Event Number & SBit, 16 bits : bxNum:6, SBit:6 */
       uint16_t ChipID;  /*!<ChipID 16 bits, 1110:4 (control bits), ChipID:12 */
       ChannelData data; /*!<ChannelData channels data */
