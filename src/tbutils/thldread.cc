@@ -28,7 +28,7 @@
 
 /*! \file */
 /*! 
-  \mainpage Threshold Scan ROOT based application, example.
+  \mainpage Threshold Scan ROOT based application.
 
   VFAT2 data reading example for Threshold Scan XDAQ GEM application.
   \section intro_sec Introduction
