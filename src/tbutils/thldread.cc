@@ -30,12 +30,23 @@
 /*! 
   \mainpage Threshold Scan ROOT based application.
 
-  VFAT2 data reading example for Threshold Scan XDAQ GEM application.
-  \section intro_sec Introduction
+  VFAT2 data reading example for Threshold Scan XDAQ GEM application, ROOT based analysis.
 
-  This is the introduction.
+  \section Installation
 
-  \section install_sec Installation
+  you can make a data file by XDAQ Threshold Scan appliaction or get example from the CERN web:
+
+  wget https://baranov.web.cern.ch/baranov/xdaq/threshold/vfat2_9/ThresholdScan_Fri_Jan_16_14-17-59_2015.dat <br>
+  ln -s ThresholdScan_Fri_Jan_16_14-17-59_2015.dat ThresholdScan.dat
+
+  You need a ROOT code for analysis:
+
+  git clone git@github.com:sergueibaranov/gem-root-application.git <br>
+
+  gem-root-application/scripts/with_root_compile.sh gem-root-application/src/tbutils/thldread.cc
+
+  That is all. You will have a root file with 128 threshold scan histograms for one VFAT2 chip.
+
   \author Sergey.Baranov@cern.ch
 */
 
