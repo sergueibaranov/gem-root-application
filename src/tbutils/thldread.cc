@@ -1,4 +1,5 @@
 #ifndef __CINT__
+#include <iomanip> 
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -20,7 +21,6 @@
 #include <TInterpreter.h>
 #include <TApplication.h>
 #include <TString.h>
-
 
 /**
 * ... Threshold Scan ROOT based application, could be used for analisys of XDAQ GEM data ...
@@ -54,146 +54,168 @@ using namespace std;
 
 //! GEM VFAT2 Data class.
 /*!
-  \brief VFAT2Data
+  \brief GEMData
   contents VFAT2 GEM data format 
   \author Sergey.Baranov@cern.ch
 */
 
-class VFAT2Data {
+class GEMData {
   public:
 
-    //! VFAT2 Channel data.
-    /*!
-      contents VFAT2 128 channels data in two 64 bits words.
-    */
+      //! VFAT2 Channel data.
+      /*!
+        contents VFAT2 128 channels data in two 64 bits words.
+       */
+    
+      //! GEM Event Data Format (one chip data)
+      /*! 
+        Uncoding of VFAT2 data for one chip, data format.
+        \image html vfat2.data.format.png
+        \author Sergey.Baranov@cern.ch
+       */
+    
+      struct VFATData {
+        uint16_t BC;      /*!<Banch Crossing number "BC" 16 bits, : 1010:4 (control bits), BC:12 */
+        uint16_t EC;      /*!<Event Counter "EC" 16 bits: 1100:4(control bits) , EC:8, Flags:4 */
+        uint32_t bxExp;   
+        uint16_t bxNum;   /*!<Event Number & SBit, 16 bits : bxNum:6, SBit:6 */
+        uint16_t ChipID;  /*!<ChipID 16 bits, 1110:4 (control bits), ChipID:12 */
+        uint64_t lsData;  /*!<lsData value, bits from 1to64. */ 
+        uint64_t msData;  /*!<msData value, bits from 65to128. */
+        double delVT;     /*!<delVT = deviceVT2-deviceVT1, Threshold Scan needs this value. */
+        uint16_t crc;     /*!<Checksum number, CRC:16 */
+      };    
+    
+      //! Application header struct
+      /*!
+        \brief AppHeader contens Threshold scan parameters
+       */
+    
+      struct AppHeader {  
+        int minTh;     /*!<minTh minimal threshold value. */ 
+        int maxTh;     /*!<maxTh maximal threshold value. */ 
+        int stepSize;  /*!<stepSize threshold ste size value. */
+      };
+    
+      //! Print Event, "hex" format.
+      /*! 
+        Print VFAT2 event.
+       */
+    
+      //
+      // Useful printouts 
+      //
+      void show4bits(uint8_t x) {
+        int i;
+        const unsigned long unit = 1;
+        for(i=(sizeof(uint8_t)*4)-1; i>=0; i--)
+          (x & ((unit)<<i))?putchar('1'):putchar('0');
+     	//printf("\n");
+      }
 
-    struct ChannelData {
-      uint64_t lsData;  /*!<lsData value, bits from 1to64. */ 
-      uint64_t msData;  /*!<msData value, bits from 65to128. */
-      double delVT;     /*!<delVT = deviceVT2-deviceVT1, Threshold Scan needs this value. */
-    };
+      bool printVFATdata(int event, const VFATData& vfat){
+        if( event<0) return(false);
+          cout << "Received tracking data word:" << endl;
+          cout << "BC      :: 0x" << std::setfill('0') << std::setw(4) << hex << vfat.BC     << dec << endl;
+  	  cout << "EC      :: 0x" << std::setfill('0') << std::setw(4) << hex << vfat.EC     << dec << endl;
+          cout << "BxExp   :: 0x" << std::setfill('0') << std::setw(4) << hex << vfat.bxExp  << dec << endl; // do we need here?
+          cout << "BxNum   :: 0x" << std::setfill('0') << std::setw(4) << hex << vfat.bxNum  << dec << endl; // do we need here?
+  	  cout << "ChipID  :: 0x" << std::setfill('0') << std::setw(4) << hex << vfat.ChipID << dec << endl;
+          cout << "<127:64>:: 0x" << std::setfill('0') << std::setw(8) << hex << vfat.msData << dec << endl;
+          cout << "<63:0>  :: 0x" << std::setfill('0') << std::setw(8) << hex << vfat.lsData << dec << endl;
+          cout << "crc     :: 0x" << std::setfill('0') << std::setw(4) << hex << vfat.crc    << dec <<"\n"<< endl;
+        return(true);
+      };
 
-    //! GEM Event Data Format (one chip data)
-    /*! 
-      Uncoding of VFAT2 data for one chip, data format.
-      \image html vfat2.data.format.png
-      \author Sergey.Baranov@cern.ch
-    */
-
-    struct VFATEvent {
-      uint16_t BC;      /*!<Banch Crossing number "BC" 16 bits, : 1010:4 (control bits), BC:12 */
-      uint16_t EC;      /*!<Event Counter "EC" 16 bits: 1100:4(control bits) , EC:8, Flags:4 */
-      uint32_t bxExp;   
-      uint16_t bxNum;   /*!<Event Number & SBit, 16 bits : bxNum:6, SBit:6 */
-      uint16_t ChipID;  /*!<ChipID 16 bits, 1110:4 (control bits), ChipID:12 */
-      ChannelData data; /*!<ChannelData channels data */
-      uint16_t crc;     /*!<Checksum number, CRC:16 */
-    };    
-
-    /*
-    struct GEMEvent {
-      uint32_t header1;
-      std::vector<VFATEvent> vfats;
-      uint32_t trailer1;
-    } GEMEvent;
-    */
-   
-    //! Application header struct
-    /*!
-      \brief AppHeader contens Threshold scan parameters
-    */
-
-    struct AppHeader {  
-      int minTh;     /*!<minTh minimal threshold value. */ 
-      int maxTh;     /*!<maxTh maximal threshold value. */ 
-      int stepSize;  /*!<stepSize threshold ste size value. */
-    };
-
-    //! Print Event, "hex" format.
-    /*! 
-      Print VFAT2 event.
-    */
-
-    bool Print(int event, const VFATEvent& ev, const ChannelData& ch){
-      if( event<0 ) return(false);
-      cout << "\nevent " << event << endl;
-      cout << hex << ev.BC << dec << endl;
-      cout << hex << ev.EC << dec << endl;
-      cout << hex << ev.bxExp << dec << endl;
-      cout << hex << ev.bxNum << dec << endl;
-      cout << hex << ev.ChipID << dec << endl;
-      cout << hex << ch.lsData << dec << endl;
-      cout << hex << ch.msData << dec << endl;
-      cout << hex << ev.crc << dec << endl;
-      cout << ch.delVT << endl;
-    };
-
-    //! Print ChipID.
-    /*! 
-      Print ChipID "hex" number and control bits "1110"
-    */
-
-    bool PrintChipID(int event, const VFATEvent& ev, const ChannelData& ch){
-      if( event<0 ) return(false);
-      cout << "\nevent " << event << endl;
-      uint8_t bitsE = ((ev.ChipID&0xF000)>>12);
-      showbits(bitsE);
-      cout << hex << "1110 0x0" << ((ev.ChipID&0xF000)>>12) << " ChipID 0x" << (ev.ChipID&0x0FFF) << dec << endl;
-    };
-
-    //! Read 1-128 channels data
-    /*!
-    reading two 64 bits words (lsData & msData) with data from all channels for one VFAT2 chip 
-    */
-
-    bool readData(ifstream& inpf, int event, ChannelData& ch){
-      if(event<0) return(false);
-      inpf >> hex >> ch.lsData;
-      inpf >> hex >> ch.msData;
-      inpf >> ch.delVT;
-      return(true);
-    };	  
-
-    //! Read GEM event data
-    /*!
-      reading GEM VFAT2 data (BC,EC,bxNum,ChipID,(lsData & msData), crc.
-    */
-
-    bool readEvent(ifstream& inpf, int event, VFATEvent& ev, ChannelData& ch){
-      if(event<0) return(false);
-        inpf >> hex >> ev.BC;
-        inpf >> hex >> ev.EC;
-        inpf >> hex >> ev.bxExp;
-        inpf >> hex >> ev.bxNum;
-        inpf >> hex >> ev.ChipID;
-        readData (inpf, event, ch);
-        inpf >> hex >> ev.crc;
-      return(true);
+      bool printVFATdataBits(int event, const VFATData& vfat){
+        if( event<0) return(false);
+	  cout << "\nReceived VFAT data word: event " << event << endl;
+  
+          uint8_t   b1010 = (0xf000 & vfat.BC) >> 12;
+          show4bits(b1010); cout << " BC     0x" << hex << (0x0fff & vfat.BC) << dec << endl;
+  
+          uint8_t   b1100 = (0xf000 & vfat.EC) >> 12;
+          uint16_t   EC   = (0x0ff0 & vfat.EC) >> 4;
+          uint8_t   Flag  = (0x000f & vfat.EC);
+          show4bits(b1100); cout << " EC     0x" << hex << EC << dec << endl; 
+          show4bits(Flag);  cout << " Flags " << endl;
+  
+          uint8_t   b1110 = (0xf000 & vfat.ChipID) >> 12;
+          uint16_t ChipID = (0x0fff & vfat.ChipID);
+          show4bits(b1110); cout << " ChipID 0x" << hex << ChipID << dec << " " << endl;
+  
+          cout << "     bxExp  0x" << std::setfill('0') << std::setw(4) << hex << vfat.bxExp << dec << " " << endl;
+  	  cout << "     bxNum  0x" << std::setfill('0') << std::setw(2) << hex << ((0xff00 & vfat.bxNum) >> 8) << dec << endl;
+  	  cout << "     SBit   0x" << std::setfill('0') << std::setw(2) << hex <<  (0x00ff & vfat.bxNum)       << dec << endl;
+          cout << " <127:64>:: 0x" << std::setfill('0') << std::setw(8) << hex << vfat.msData << dec << endl;
+          cout << " <63:0>  :: 0x" << std::setfill('0') << std::setw(8) << hex << vfat.lsData << dec << endl;
+          cout << "     crc    0x" << hex << vfat.crc << dec << endl;
+  
+          //cout << " " << endl; show16bits(vfat.EC);
+  
+          return(true);
+      };
+  
+      //! Print ChipID.
+      /*! 
+          Print ChipID "hex" number and control bits "1110"
+       */
+    
+      bool PrintChipID(int event, const VFATData& vfat){
+        if( event<0 ) return(false);
+          cout << "\nevent " << event << endl;
+          uint8_t bitsE = ((vfat.ChipID&0xF000)>>12);
+          showbits(bitsE);
+          cout << hex << "1110 0x0" << ((vfat.ChipID&0xF000)>>12) << " ChipID 0x" << (vfat.ChipID&0x0FFF) << dec << endl;
+      };
+    
+      //! Read 1-128 channels data
+      /*!
+        reading two 64 bits words (lsData & msData) with data from all channels for one VFAT2 chip 
+       */
+    
+      //! Read GEM event data
+      /*!
+        reading GEM VFAT2 data (BC,EC,bxNum,ChipID,(lsData & msData), crc.
+       */
+    
+      bool readEvent(ifstream& inpf, int event, VFATData& vfat){
+        if(event<0) return(false);
+          inpf >> hex >> vfat.BC;
+          inpf >> hex >> vfat.EC;
+          inpf >> hex >> vfat.bxExp;
+          inpf >> hex >> vfat.bxNum;
+          inpf >> hex >> vfat.ChipID;
+          inpf >> hex >> vfat.lsData;
+          inpf >> hex >> vfat.msData;
+          inpf >>        vfat.delVT;
+          inpf >> hex >> vfat.crc;
+        return(true);
       };	  
-
-    //! read Threshold scan header.
-    /*!
-      reading of Threshold Scan setup header
-    */
-
-    bool readHeader(ifstream& inpf, AppHeader& ah){
-      inpf >> ah.minTh;
-      inpf >> ah.maxTh;
-      inpf >> ah.stepSize;
-      return(true);
-    };	  
-
-    //! showbits function.
-    /*!
-    show bits function, needs for debugging
-    */
-
-    void showbits(uint8_t x)
-    { int i; 
-        for(i=(sizeof(uint8_t)*8)-1; i>=0; i--)
-          (x&(1<<i))?putchar('1'):putchar('0');
-        printf("\n");
-    };
+    
+      //! read Threshold scan header.
+      /*!
+        reading of Threshold Scan setup header
+       */
+    
+      bool readHeader(ifstream& inpf, AppHeader& ah){
+        inpf >> ah.minTh;
+        inpf >> ah.maxTh;
+        inpf >> ah.stepSize;
+        return(true);
+      };	  
+    
+      //! showbits function.
+      /*!
+       show bits function, needs for debugging
+       */
+    
+      void showbits(uint8_t x)
+        { int i; 
+          for(i=(sizeof(uint8_t)*8)-1; i>=0; i--)
+            (x&(1<<i))?putchar('1'):putchar('0');
+          printf("\n");
+        };
 };
 
 //! root function.
@@ -218,11 +240,11 @@ TFile* thldread(Int_t get=0)
   TApplication App("App", &argc, argv);
 #endif
 
-  VFAT2Data data;
-  VFAT2Data::ChannelData ch;
-  VFAT2Data::VFATEvent ev;
-  VFAT2Data::AppHeader ah;
+  GEMData data;
+  GEMData::VFATData vfat;
+  GEMData::AppHeader  ah;
 
+  int ieventPrint = 20;
   string file="ThresholdScan.dat";
 
   ifstream inpf(file.c_str());
@@ -273,33 +295,36 @@ TFile* thldread(Int_t get=0)
     histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, (Double_t)ah.minTh-0.5,(Double_t)ah.maxTh+0.5);
   }
 
-  Int_t ieventMax=100000;
-  const Int_t kUPDATE = 1000;
-  uint8_t bits1110 = 0x00;
+  Int_t ieventMax=1000000;
+  const Int_t kUPDATE = 700;
 
   for(int ievent=0; ievent<ieventMax; ievent++){
 
     if(inpf.eof()) break;
     if(!inpf.good()) break;
 
-    data.readEvent(inpf, ievent, ev, ch);
-    //data.Print(ievent, ev, ch);
-    //data.PrintChipID(ievent, ev, ch);
+    data.readEvent(inpf, ievent, vfat);
 
-    // cout << "delVT " << ch.delVT << " " << dec << (ch.lsData||ch.msData) << dec << endl;
+    // cout << "delVT " << vfat.delVT << " " << dec << (vfat.lsData||vfat.msData) << dec << endl;
 
-    histo->Fill(ch.delVT, (ch.lsData||ch.msData));
+    if(ievent < ieventPrint){
+      data.printVFATdataBits(ievent, vfat);
+      //data.printVFATdata(ievent, vfat);
+      //data.PrintChipID(ievent,vfat);
+    }
+
+    histo->Fill(vfat.delVT, (vfat.lsData||vfat.msData));
 
     //I think it would be nice to time this...
     for (int chan = 0; chan < 128; ++chan) {
       if (chan < 64)
-	histos[chan]->Fill(ch.delVT,((ch.lsData>>chan))&0x1);
+	histos[chan]->Fill(vfat.delVT,((vfat.lsData>>chan))&0x1);
       else
-	histos[chan]->Fill(ch.delVT,((ch.msData>>(chan-64)))&0x1);
+	histos[chan]->Fill(vfat.delVT,((vfat.msData>>(chan-64)))&0x1);
     }
 
     if (ievent%kUPDATE == 0 && ievent != 0) {
-      cout << " ievent " << ievent << " ievent%kUPDATE " << ievent%kUPDATE << endl;
+      if(ievent < ieventPrint) cout << "event " << ievent << " ievent%kUPDATE " << ievent%kUPDATE << endl;
       c1->cd(1);
       histo->Draw();
       c1->Update();
