@@ -8,6 +8,9 @@
 #include <vector>
 #include <cstdint>
 
+#include <boost/utility/binary.hpp>
+#include <bitset>
+
 #include <TFile.h>
 #include <TNtuple.h>
 #include <TH2.h>
@@ -462,11 +465,6 @@ TFile* thldread(Int_t get=0)
     if (ievent%kUPDATE1 == 0 && ievent != 0) {
       GEBDataEvent++;
 
-      if(ievent < ieventPrint){
-        cout << "event " << ievent << " ievent%kUPDATE1 " << ievent%kUPDATE1 << " sumVFAT " << sumVFAT+1 << " GEBDataEvent " << GEBDataEvent << endl;
-      }
-      event_=ievent;
-
       // Chamber Header, Zero Suppression flags, Chamber ID
       int IndexVFATChipOnGEB = 0; 
       uint64_t ZSFlag  = (ZSFlag | (1 << (23-IndexVFATChipOnGEB))); // :24
@@ -479,6 +477,11 @@ TFile* thldread(Int_t get=0)
       } else {
         GEMOnline::writeGEBheaderBinary (outFileName_, event_, geb);
       } 
+
+      if(ievent < ieventPrint){
+        cout << "event " << ievent << " ievent%kUPDATE1 " << ievent%kUPDATE1 << " sumVFAT " << sumVFAT+1 << " GEBDataEvent " << GEBDataEvent << endl;
+      }
+      event_=ievent;
 
       // GEB data level
       GEMOnline::writeGEMevent(gem, geb, vfat);
