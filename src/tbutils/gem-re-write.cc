@@ -60,6 +60,7 @@ using namespace std;
 */
 
 int event_ = 0;
+int GEBDataEvent = 0;
 std::string outputType_ = "Hex";
 std::string outFileName_ = "DataParkerThreshold.dat";
 
@@ -311,8 +312,6 @@ class GEMOnline {
 
       static void writeGEMevent(GEMData& gem, GEBData& geb, VFATData& vfat)
       {
-        cout << geb.vfats.size() << endl;
-      
         // GEB data level
         if(outputType_ == "Hex"){
           writeGEBheader (outFileName_, event_, geb);
@@ -427,8 +426,8 @@ TFile* thldread(Int_t get=0)
     histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, (Double_t)ah.minTh-0.5,(Double_t)ah.maxTh+0.5);
   }
 
-  Int_t ieventMax=9, LastEvent=0;
-  const Int_t kUPDATE = 3;
+  Int_t ieventMax=90000, LastEvent=0;
+  const Int_t kUPDATE1 = 23, kUPDATE2 = 3000;
 
   for(int ievent=0; ievent<ieventMax; ievent++){
     if(inpf.eof()) break;
@@ -438,7 +437,7 @@ TFile* thldread(Int_t get=0)
     data.readEvent(inpf, ievent, vfat);
 
     if(ievent <= ieventPrint){
-      data.printVFATdataBits(ievent, vfat);
+      //data.printVFATdataBits(ievent, vfat);
       //data.printVFATdata(ievent, vfat);
       //data.PrintChipID(ievent,vfat);
       // cout << "delVT " << vfat.delVT << " " << dec << (vfat.lsData||vfat.msData) << dec << endl;
@@ -458,36 +457,56 @@ TFile* thldread(Int_t get=0)
     * Keeping GEM events
     */
 
-    int IndexVFATChipOnGEB = 0; 
-    // Chamber Header, Zero Suppression flags, Chamber ID
-    uint64_t ZSFlag  = (ZSFlag | (1 << (23-IndexVFATChipOnGEB))); // :24
-    uint64_t ChamID  = 0xdea;                                     // :12
-    uint64_t sumVFAT = int(geb.vfats.size());                     // :28, geb.vfats.size was placed a very temporary here !!!
-  
-    geb.header  = (ZSFlag << 40)|(ChamID << 28)|(sumVFAT);
     geb.vfats.push_back(vfat);
 
-    if (ievent%kUPDATE == 0 && ievent != 0) {
+    if (ievent%kUPDATE1 == 0 && ievent != 0) {
+      GEBDataEvent++;
+
       if(ievent < ieventPrint){
-        cout << "event " << ievent << " ievent%kUPDATE " << ievent%kUPDATE << " sumVFAT " << sumVFAT << endl;
+        cout << "event " << ievent << " ievent%kUPDATE1 " << ievent%kUPDATE1 << " sumVFAT " << sumVFAT+1 << " GEBDataEvent " << GEBDataEvent << endl;
       }
       event_=ievent;
 
-      // GEB data level
-      if(outputType_ == "Hex"){
+      // Chamber Header, Zero Suppression flags, Chamber ID
+      int IndexVFATChipOnGEB = 0; 
+      uint64_t ZSFlag  = (ZSFlag | (1 << (23-IndexVFATChipOnGEB))); // :24
+      uint64_t ChamID  = 0xdea;                                     // :12
+      uint64_t sumVFAT = int(geb.vfats.size());                     // :28, geb.vfats.size was placed a very temporary here !!!
+    
+      geb.header  = (ZSFlag << 40)|(ChamID << 28)|(sumVFAT);
+        if(outputType_ == "Hex"){
         GEMOnline::writeGEBheader (outFileName_, event_, geb);
       } else {
         GEMOnline::writeGEBheaderBinary (outFileName_, event_, geb);
       } 
 
+      // GEB data level
       GEMOnline::writeGEMevent(gem, geb, vfat);
-      geb.vfats.erase (geb.vfats.begin(),geb.vfats.begin()+kUPDATE);
+      geb.vfats.erase (geb.vfats.begin(),geb.vfats.begin()+kUPDATE1);
+      //cout << " geb.vfats.erase " << geb.vfats.size() << endl;
 
+      // Chamber Trailer, OptoHybrid: crc, wordcount, Chamber status
+      uint64_t OHcrc       = BOOST_BINARY( 1 ); // :16
+      uint64_t OHwCount    = BOOST_BINARY( 1 ); // :16
+      uint64_t ChamStatus  = BOOST_BINARY( 1 ); // :16
+      geb.trailer = ((OHcrc << 48)|(OHwCount << 32 )|(ChamStatus << 16));
+    
+      OHcrc      = (0xffff000000000000 & geb.trailer) >> 48; 
+      OHwCount   = (0x0000ffff00000000 & geb.trailer) >> 32; 
+      ChamStatus = (0x00000000ffff0000 & geb.trailer) >> 16;
+    
+      if(outputType_ == "Hex"){
+        GEMOnline::writeGEBtrailer (outFileName_, event_, geb);
+      } else {
+        GEMOnline::writeGEBtrailerBinary (outFileName_, event_, geb);
+      } 
+    }
+
+    if (ievent%kUPDATE2 == 0 && ievent != 0) {
       c1->cd(1);
       histo->Draw();
       c1->Update();
     }
-
   }//end loop for events
   cout << "\n The Last Event is  " << LastEvent+1 << endl;
   inpf.close();
