@@ -295,8 +295,8 @@ TFile* thldread(Int_t get=0)
   hiCRC->SetFillColor(48);
 
   // Booking of 128 histograms for each VFAT2 channel
-  TH1F* histo = new TH1F("allchannels", "all channels",  128, -0.5, 128.5 );
-  histo->SetFillColor(48);
+  TH1F* hiCh128 = new TH1F("hiCh128", "all channels",    128, -0.5, 128.5 );
+  hiCh128->SetFillColor(48);
 
   stringstream histName, histTitle;
   TH1F* histos[128];
@@ -309,7 +309,7 @@ TFile* thldread(Int_t get=0)
     histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), 100, 0., 0xf );
   }
 
-  const Int_t ieventPrint = 10;
+  const Int_t ieventPrint = 1;
   const Int_t ieventMax   = 9000000;
   const Int_t kUPDATE     = 100;
 
@@ -347,16 +347,20 @@ TFile* thldread(Int_t get=0)
       hiChip->Fill(ChipID);
       hiCRC->Fill(CRC);
 
-      histo->Fill((vfat.lsData||vfat.msData));
-
       //I think it would be nice to time this...
+      uint8_t chan0xf = 0;
       for (int chan = 0; chan < 128; ++chan) {
-        if (chan < 64)
-  	  histos[chan]->Fill(((vfat.lsData>>chan))&0x1);
-        else
-  	  histos[chan]->Fill(((vfat.msData>>(chan-64)))&0x1);
+        if (chan < 64){
+          chan0xf = (vfat.lsData >> chan) & 0x1;
+  	  histos[chan]->Fill(chan0xf);
+	  if(!chan0xf) hiCh128->Fill(chan);
+	} else {
+          chan0xf = (vfat.lsData >> (chan-64)) & 0x1;
+  	  histos[chan]->Fill(chan0xf);
+	  if(!chan0xf) hiCh128->Fill(chan);
+        }
       }
-  
+
       if(ievent <= ieventPrint){
 	Online.printVFATdataBits(ievent, ivfat, vfat);
         //Online.printVFATdata(ievent, vfat);
@@ -384,7 +388,7 @@ TFile* thldread(Int_t get=0)
       c1->cd(4)->SetLogy(); hi1110->Draw();
       c1->cd(5); hiChip->Draw();
       c1->cd(6)->SetLogy(); hiCRC->Draw();
-      c1->cd(7); histo->Draw();
+      c1->cd(7); hiCh128->Draw();
       c1->Update();
     }
 
