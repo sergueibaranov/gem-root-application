@@ -344,7 +344,7 @@ TFile* thldread(Int_t get=0)
       hi1010->Fill(b1010);
       hi1100->Fill(b1100);
       hi1110->Fill(b1110);
-      hiChip->Fill(ChipID);
+      /*if (ChipID != 0xded)*/ hiChip->Fill(ChipID);
       hiCRC->Fill(CRC);
 
       //I think it would be nice to time this...
@@ -386,7 +386,7 @@ TFile* thldread(Int_t get=0)
       c1->cd(2); hi1010->Draw();
       c1->cd(3); hi1100->Draw();
       c1->cd(4)->SetLogy(); hi1110->Draw();
-      c1->cd(5); hiChip->Draw();
+      c1->cd(5)->SetLogy(); hiChip->Draw();
       c1->cd(6)->SetLogy(); hiCRC->Draw();
       c1->cd(7); hiCh128->Draw();
       c1->Update();
