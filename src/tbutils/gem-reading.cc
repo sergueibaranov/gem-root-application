@@ -254,7 +254,6 @@ TFile* thldread(Int_t get=0)
   GEMOnline::VFATData vfat;
   GEMOnline::GEBData   geb;
 
-  int ieventPrint = 1000;
   string file="DataParker.dat";
 
   ifstream inpf(file.c_str());
@@ -301,18 +300,19 @@ TFile* thldread(Int_t get=0)
     histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, (Double_t)minTh-0.5,(Double_t)maxTh+0.5);
   }
 
-  Int_t ieventMax=1000;
-  const Int_t kUPDATE = 100;
+  const Int_t ieventPrint = 1000;
+  const Int_t ieventMax   = 9000000;
+  const Int_t kUPDATE     = 300;
 
   for(int ievent=0; ievent<ieventMax; ievent++){
     if(inpf.eof()) break;
     if(!inpf.good()) break;
 
-    cout << " ievent " << ievent << endl;
+    cout << "\nievent " << ievent << endl;
 
     // read Event Chamber Header 
     Online.readGEBheader(inpf, geb);
-    Online.printGEBheader(geb);
+    //Online.printGEBheader(geb);
 
     uint64_t ZSFlag  = (0xffffff0000000000 & geb.header) >> 40; 
     uint64_t ChamID  = (0x000000fff0000000 & geb.header) >> 28; 
