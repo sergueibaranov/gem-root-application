@@ -295,7 +295,7 @@ TFile* thldread(Int_t get=0)
   hiCRC->SetFillColor(48);
 
   // Booking of 128 histograms for each VFAT2 channel
-  TH1F* histo = new TH1F("allchannels", "all channels",  128, -0.5, 128 );
+  TH1F* histo = new TH1F("allchannels", "all channels",  128, -0.5, 128.5 );
   histo->SetFillColor(48);
 
   stringstream histName, histTitle;
@@ -306,7 +306,7 @@ TFile* thldread(Int_t get=0)
     histTitle.clear(); histTitle.str(std::string());
     histName  << "channel"<<(hi+1);
     histTitle << "Threshold scan for channel "<<(hi+1);
-    histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, (Double_t)minTh-0.5,(Double_t)maxTh+0.5);
+    histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), 100, 0., 0xf );
   }
 
   const Int_t ieventPrint = 10;
@@ -336,7 +336,10 @@ TFile* thldread(Int_t get=0)
       uint16_t  ChipID = (0x0fff & vfat.ChipID);
       uint16_t  CRC    = vfat.crc;
 
-      // GEM Event Analyse
+     /*
+      * GEM Event Analyse
+      */
+
       hiVFAT->Fill(ivfat);
       hi1010->Fill(b1010);
       hi1100->Fill(b1100);
@@ -344,6 +347,16 @@ TFile* thldread(Int_t get=0)
       hiChip->Fill(ChipID);
       hiCRC->Fill(CRC);
 
+      histo->Fill((vfat.lsData||vfat.msData));
+
+      //I think it would be nice to time this...
+      for (int chan = 0; chan < 128; ++chan) {
+        if (chan < 64)
+  	  histos[chan]->Fill(((vfat.lsData>>chan))&0x1);
+        else
+  	  histos[chan]->Fill(((vfat.msData>>(chan-64)))&0x1);
+      }
+  
       if(ievent <= ieventPrint){
 	Online.printVFATdataBits(ievent, ivfat, vfat);
         //Online.printVFATdata(ievent, vfat);
@@ -363,22 +376,6 @@ TFile* thldread(Int_t get=0)
            << " ievent " << ievent << endl;
     }
 
-    /*
-    *  GEM Event Analyse 
-    */
-
-    /*
-    histo->Fill(vfat.delVT, (vfat.lsData||vfat.msData));
-
-    //I think it would be nice to time this...
-    for (int chan = 0; chan < 128; ++chan) {
-      if (chan < 64)
-	histos[chan]->Fill(vfat.delVT,((vfat.lsData>>chan))&0x1);
-      else
-	histos[chan]->Fill(vfat.delVT,((vfat.msData>>(chan-64)))&0x1);
-    }
-    */
-
     if (ievent%kUPDATE == 0 && ievent != 0) {
       if(ievent < ieventPrint) cout << "event " << ievent << " ievent%kUPDATE " << ievent%kUPDATE << endl;
       c1->cd(1)->SetLogy(); hiVFAT->Draw();
@@ -387,6 +384,7 @@ TFile* thldread(Int_t get=0)
       c1->cd(4)->SetLogy(); hi1110->Draw();
       c1->cd(5); hiChip->Draw();
       c1->cd(6)->SetLogy(); hiCRC->Draw();
+      c1->cd(7); histo->Draw();
       c1->Update();
     }
 
