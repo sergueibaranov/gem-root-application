@@ -265,54 +265,63 @@ TFile* thldread(Int_t get=0)
   /* Threshould Analysis Histograms */
   const TString filename = "DQMlight.root";
 
-  TFile* hfile = NULL;
-  hfile = new TFile(filename,"RECREATE","Threshold Scan ROOT file with histograms");
-
-  int nBins = 10;
-  float minTh = 0.;
-  float maxTh = 0.;
-  TH1F* histo = new TH1F("allchannels", "Threshold scan for all channels", nBins, (Double_t)minTh-0.5,(Double_t)maxTh+0.5 );
-
-  histo->SetFillColor(48);
-
   // Create a new canvas.
-  TCanvas *c1 = new TCanvas("c1","Dynamic Filling Example",50,50,500,500);
-
+  TCanvas *c1 = new TCanvas("c1","Dynamic Filling Example",50,50,900,900);
   c1->SetFillColor(42);
   c1->GetFrame()->SetFillColor(21);
   c1->GetFrame()->SetBorderSize(6);
   c1->GetFrame()->SetBorderMode(-1);
-  c1->Divide(1,1);
+  c1->Divide(3,3);
 
-  // Booking of 128 histograms for each VFAT2 channel 
+  TFile* hfile = NULL;
+  hfile = new TFile(filename,"RECREATE","Threshold Scan ROOT file with histograms");
+
+  TH1F* hiVFAT = new TH1F("hiVFAT", "Number VFAT fer event", 100, (Double_t)-0.5,(Double_t)300.5 );
+  hiVFAT->SetFillColor(48);
+
+  TH1F* hi1010 = new TH1F("hi1010", "Control Bits 1010", 100, 0x00, 0xf );
+  hi1010->SetFillColor(48);
+
+  TH1F* hi1100 = new TH1F("hi1100", "Control Bits 1100", 100, 0x00, 0xf );
+  hi1100->SetFillColor(48);
+
+  TH1F* hi1110 = new TH1F("hi1110", "Control Bits 1110", 100, 0x00, 0xf );
+  hi1110->SetFillColor(48);
+
+  TH1F* hiChip = new TH1F("hiChip", "ChipID",            100, 0x00, 0xfff );
+  hiChip->SetFillColor(48);
+
+  TH1F* hiCRC = new TH1F("hiCRC",   "CRC",               100, 0x00, 0xffff );
+  hiCRC->SetFillColor(48);
+
+  // Booking of 128 histograms for each VFAT2 channel
+  TH1F* histo = new TH1F("allchannels", "all channels",  128, -0.5, 128 );
+  histo->SetFillColor(48);
+
   stringstream histName, histTitle;
   TH1F* histos[128];
 
   for (unsigned int hi = 0; hi < 128; ++hi) {
-    
-    histName.clear();
-    histName.str(std::string());
-    histTitle.clear();
-    histTitle.str(std::string());
-
+    histName.clear(); histName.str(std::string());
+    histTitle.clear(); histTitle.str(std::string());
     histName  << "channel"<<(hi+1);
     histTitle << "Threshold scan for channel "<<(hi+1);
     histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), nBins, (Double_t)minTh-0.5,(Double_t)maxTh+0.5);
   }
 
-  const Int_t ieventPrint = 1000;
+  const Int_t ieventPrint = 10;
   const Int_t ieventMax   = 9000000;
-  const Int_t kUPDATE     = 300;
+  const Int_t kUPDATE     = 100;
 
   for(int ievent=0; ievent<ieventMax; ievent++){
     if(inpf.eof()) break;
     if(!inpf.good()) break;
 
-    cout << "\nievent " << ievent << endl;
+    if(ievent <= ieventPrint) cout << "\nievent " << ievent << endl;
 
     // read Event Chamber Header 
     Online.readGEBheader(inpf, geb);
-    //Online.printGEBheader(geb);
+    if(ievent <= ieventPrint) Online.printGEBheader(geb);
 
     uint64_t ZSFlag  = (0xffffff0000000000 & geb.header) >> 40; 
     uint64_t ChamID  = (0x000000fff0000000 & geb.header) >> 28; 
@@ -320,6 +329,21 @@ TFile* thldread(Int_t get=0)
 
     for(int ivfat=0; ivfat<sumVFAT; ivfat++){
       Online.readEvent(inpf, ievent, vfat);
+
+      uint8_t   b1010  = (0xf000 & vfat.BC) >> 12;
+      uint8_t   b1100  = (0xf000 & vfat.EC) >> 12;
+      uint8_t   b1110  = (0xf000 & vfat.ChipID) >> 12;
+      uint16_t  ChipID = (0x0fff & vfat.ChipID);
+      uint16_t  CRC    = vfat.crc;
+
+      // GEM Event Analyse
+      hiVFAT->Fill(ivfat);
+      hi1010->Fill(b1010);
+      hi1100->Fill(b1100);
+      hi1110->Fill(b1110);
+      hiChip->Fill(ChipID);
+      hiCRC->Fill(CRC);
+
       if(ievent <= ieventPrint){
 	Online.printVFATdataBits(ievent, ivfat, vfat);
         //Online.printVFATdata(ievent, vfat);
@@ -334,12 +358,15 @@ TFile* thldread(Int_t get=0)
     uint64_t OHwCount   = (0x0000ffff00000000 & geb.trailer) >> 32; 
     uint64_t ChamStatus = (0x00000000ffff0000 & geb.trailer) >> 16;
 
-    cout << " GEM Camber Treiler: OHcrc " << hex << OHcrc << " OHwCount " << OHwCount << " ChamStatus " << ChamStatus << dec 
-         << " ievent " << ievent << endl;
+    if(ievent <= ieventPrint){
+      cout << "GEM Camber Treiler: OHcrc " << hex << OHcrc << " OHwCount " << OHwCount << " ChamStatus " << ChamStatus << dec 
+           << " ievent " << ievent << endl;
+    }
 
     /*
     *  GEM Event Analyse 
     */
+
     /*
     histo->Fill(vfat.delVT, (vfat.lsData||vfat.msData));
 
@@ -354,8 +381,12 @@ TFile* thldread(Int_t get=0)
 
     if (ievent%kUPDATE == 0 && ievent != 0) {
       if(ievent < ieventPrint) cout << "event " << ievent << " ievent%kUPDATE " << ievent%kUPDATE << endl;
-      c1->cd(1);
-      histo->Draw();
+      c1->cd(1)->SetLogy(); hiVFAT->Draw();
+      c1->cd(2); hi1010->Draw();
+      c1->cd(3); hi1100->Draw();
+      c1->cd(4)->SetLogy(); hi1110->Draw();
+      c1->cd(5); hiChip->Draw();
+      c1->cd(6)->SetLogy(); hiCRC->Draw();
       c1->Update();
     }
 
