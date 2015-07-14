@@ -82,7 +82,6 @@ class GEMOnline {
         uint16_t ChipID;  /*!<ChipID 16 bits, 1110:4 (control bits), ChipID:12 */
         uint64_t lsData;  /*!<lsData value, bits from 1to64. */ 
         uint64_t msData;  /*!<msData value, bits from 65to128. */
-        double delVT;     /*!<delVT = deviceVT2-deviceVT1, Threshold Scan needs this value. */
         uint16_t crc;     /*!<Checksum number, CRC:16 */
       };    
     
@@ -109,7 +108,7 @@ class GEMOnline {
       //
       // Useful printouts 
       //
-      static void show4bits(uint8_t x) {
+      void show4bits(uint8_t x) {
         int i;
         const unsigned long unit = 1;
         for(i=(sizeof(uint8_t)*4)-1; i>=0; i--)
@@ -117,7 +116,7 @@ class GEMOnline {
      	//printf("\n");
       }
 
-      static bool printVFATdata(int event, const VFATData& vfat){
+      bool printVFATdata(int event, const VFATData& vfat){
         if( event<0) return(false);
           cout << "Received tracking data word:" << endl;
           cout << "BC      :: 0x" << std::setfill('0') << std::setw(4) << hex << vfat.BC     << dec << endl;
@@ -133,7 +132,7 @@ class GEMOnline {
         return(true);
       };
 
-      static bool printVFATdataBits(int event, int ivfat, const VFATData& vfat){
+      bool printVFATdataBits(int event, int ivfat, const VFATData& vfat){
           if( event<0) return(false);
 	  cout << "\nReceived VFAT data word: event " << event << " ivfat  " << ivfat << endl;
   
@@ -168,7 +167,7 @@ class GEMOnline {
           Print ChipID "hex" number and control bits "1110"
        */
     
-      static bool PrintChipID(int event, const VFATData& vfat){
+      bool PrintChipID(int event, const VFATData& vfat){
         if( event<0 ) return(false);
           cout << "\nevent " << event << endl;
           uint8_t bitsE = ((vfat.ChipID&0xF000)>>12);
@@ -181,25 +180,25 @@ class GEMOnline {
        show bits function, needs for debugging
        */
     
-      static void showbits(uint8_t x)
+      void showbits(uint8_t x)
         { int i; 
           for(i=(sizeof(uint8_t)*8)-1; i>=0; i--)
             (x&(1<<i))?putchar('1'):putchar('0');
           printf("\n");
         };
 
-      static bool readGEBheader(ifstream& inpf, GEBData& geb){
+      bool readGEBheader(ifstream& inpf, GEBData& geb){
 	inpf >> hex >> geb.header;
         return(true);
       };	  
 
-      static bool printGEBheader(const GEBData& geb){
+      bool printGEBheader(const GEBData& geb){
 	cout << hex << geb.header << " ChamID " << ((0x000000fff0000000 & geb.header) >> 28) 
              << dec << " sumVFAT " << (0x000000000fffffff & geb.header) << endl;
         return(true);
       };	  
 
-      static bool readGEBtrailer(ifstream& inpf, GEBData& geb){
+      bool readGEBtrailer(ifstream& inpf, GEBData& geb){
  	inpf >> hex >> geb.trailer;
         return(true);
       };	  
@@ -214,7 +213,7 @@ class GEMOnline {
         reading GEM VFAT2 data (BC,EC,bxNum,ChipID,(lsData & msData), crc.
        */
     
-      static bool readEvent(ifstream& inpf, int event, VFATData& vfat){
+      bool readEvent(ifstream& inpf, int event, VFATData& vfat){
         if(event<0) return(false);
           inpf >> hex >> vfat.BC;
           inpf >> hex >> vfat.EC;
@@ -224,7 +223,6 @@ class GEMOnline {
 	  inpf >> hex >> vfat.ChipID;
           inpf >> hex >> vfat.lsData;
           inpf >> hex >> vfat.msData;
-          inpf >>        vfat.delVT;
           inpf >> hex >> vfat.crc;
         return(true);
       };	  
@@ -251,7 +249,8 @@ TFile* thldread(Int_t get=0)
 #ifndef __CINT__
   TApplication App("App", &argc, argv);
 #endif
-
+ 
+  GEMOnline         Online;   
   GEMOnline::VFATData vfat;
   GEMOnline::GEBData   geb;
 
@@ -309,36 +308,39 @@ TFile* thldread(Int_t get=0)
     if(inpf.eof()) break;
     if(!inpf.good()) break;
 
+    cout << " ievent " << ievent << endl;
+
     // read Event Chamber Header 
-    GEMOnline::readGEBheader(inpf, geb);
-    GEMOnline::printGEBheader(geb);
+    Online.readGEBheader(inpf, geb);
+    Online.printGEBheader(geb);
 
     uint64_t ZSFlag  = (0xffffff0000000000 & geb.header) >> 40; 
     uint64_t ChamID  = (0x000000fff0000000 & geb.header) >> 28; 
     uint64_t sumVFAT = (0x000000000fffffff & geb.header);
 
     for(int ivfat=0; ivfat<sumVFAT; ivfat++){
-      GEMOnline::readEvent(inpf, ievent, vfat);
-  
+      Online.readEvent(inpf, ievent, vfat);
       if(ievent <= ieventPrint){
-	GEMOnline::printVFATdataBits(ievent, ivfat, vfat);
-        //GEMOnline.printVFATdata(ievent, vfat);
-        //GEMOnline.PrintChipID(ievent,vfat);
+	Online.printVFATdataBits(ievent, ivfat, vfat);
+        //Online.printVFATdata(ievent, vfat);
+        //Online.PrintChipID(ievent,vfat);
       }
     }
 
     // read Event Chamber Header 
-    GEMOnline::readGEBtrailer(inpf, geb);
+    Online.readGEBtrailer(inpf, geb);
 
     uint64_t OHcrc      = (0xffff000000000000 & geb.trailer) >> 48; 
     uint64_t OHwCount   = (0x0000ffff00000000 & geb.trailer) >> 32; 
     uint64_t ChamStatus = (0x00000000ffff0000 & geb.trailer) >> 16;
 
-    cout << " GEM Camber Treiler: OHcrc " << hex << OHcrc << " OHwCount " << OHwCount << " ChamStatus " << ChamStatus << dec << endl;
+    cout << " GEM Camber Treiler: OHcrc " << hex << OHcrc << " OHwCount " << OHwCount << " ChamStatus " << ChamStatus << dec 
+         << " ievent " << ievent << endl;
 
     /*
     *  GEM Event Analyse 
     */
+    /*
     histo->Fill(vfat.delVT, (vfat.lsData||vfat.msData));
 
     //I think it would be nice to time this...
@@ -348,6 +350,7 @@ TFile* thldread(Int_t get=0)
       else
 	histos[chan]->Fill(vfat.delVT,((vfat.msData>>(chan-64)))&0x1);
     }
+    */
 
     if (ievent%kUPDATE == 0 && ievent != 0) {
       if(ievent < ieventPrint) cout << "event " << ievent << " ievent%kUPDATE " << ievent%kUPDATE << endl;
