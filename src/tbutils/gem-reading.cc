@@ -295,7 +295,7 @@ TFile* thldread(Int_t get=0)
   hiCRC->SetFillColor(48);
 
   // Booking of 128 histograms for each VFAT2 channel
-  TH1F* hiCh128 = new TH1F("hiCh128", "all channels",    128, -0.5, 128.5 );
+  TH1F* hiCh128 = new TH1F("hiCh128", "all channels",    128, 0.,   128. );
   hiCh128->SetFillColor(48);
 
   stringstream histName, histTitle;
@@ -351,11 +351,11 @@ TFile* thldread(Int_t get=0)
       uint8_t chan0xf = 0;
       for (int chan = 0; chan < 128; ++chan) {
         if (chan < 64){
-          chan0xf = (vfat.lsData >> chan) & 0x1;
+          chan0xf = ((vfat.lsData >> chan) & 0x1);
   	  histos[chan]->Fill(chan0xf);
 	  if(!chan0xf) hiCh128->Fill(chan);
 	} else {
-          chan0xf = (vfat.lsData >> (chan-64)) & 0x1;
+          chan0xf = ((vfat.lsData >> (chan-64)) & 0x1);
   	  histos[chan]->Fill(chan0xf);
 	  if(!chan0xf) hiCh128->Fill(chan);
         }
