@@ -76,7 +76,7 @@ class GEMOnline {
     
       struct VFATData {
         uint16_t BC;      /*!<Banch Crossing number "BC" 16 bits, : 1010:4 (control bits), BC:12 */
-        uint16_t EC;      /*!<Event Counter "EC" 16 bits: 1100:4(control bits) , EC:8, Flags:4 */
+        uint16_t EC;      /*!<Event Counter "EC" 16 bits: 1100:4(control bits) , EC:8, Flag:4 */
         uint32_t bxExp;   
         uint16_t bxNum;   /*!<Event Number & SBit, 16 bits : bxNum:6, SBit:6 */
         uint16_t ChipID;  /*!<ChipID 16 bits, 1110:4 (control bits), ChipID:12 */
@@ -143,7 +143,7 @@ class GEMOnline {
           uint16_t   EC   = (0x0ff0 & vfat.EC) >> 4;
           uint8_t   Flag  = (0x000f & vfat.EC);
           show4bits(b1100); cout << " EC     0x" << hex << EC << dec << endl; 
-          show4bits(Flag);  cout << " Flags " << endl;
+          show4bits(Flag);  cout << " Flag  " << endl;
   
           uint8_t   b1110 = (0xf000 & vfat.ChipID) >> 12;
           uint16_t ChipID = (0x0fff & vfat.ChipID);
@@ -276,26 +276,29 @@ TFile* thldread(Int_t get=0)
   TFile* hfile = NULL;
   hfile = new TFile(filename,"RECREATE","Threshold Scan ROOT file with histograms");
 
-  TH1F* hiVFAT = new TH1F("hiVFAT", "Number VFAT fer event", 100, (Double_t)-0.5,(Double_t)300.5 );
+  TH1F* hiVFAT = new TH1F("VFAT", "Number VFAT per event", 100, (Double_t)-0.5,(Double_t)300.5 );
   hiVFAT->SetFillColor(48);
 
-  TH1F* hi1010 = new TH1F("hi1010", "Control Bits 1010", 100, 0x00, 0xf );
+  TH1F* hi1010 = new TH1F("1010", "Control Bits 1010", 100, 0x0, 0xf );
   hi1010->SetFillColor(48);
 
-  TH1F* hi1100 = new TH1F("hi1100", "Control Bits 1100", 100, 0x00, 0xf );
+  TH1F* hi1100 = new TH1F("1100", "Control Bits 1100", 100, 0x0, 0xf );
   hi1100->SetFillColor(48);
 
-  TH1F* hi1110 = new TH1F("hi1110", "Control Bits 1110", 100, 0x00, 0xf );
+  TH1F* hi1110 = new TH1F("1110", "Control Bits 1110", 100, 0x0, 0xf );
   hi1110->SetFillColor(48);
 
-  TH1F* hiChip = new TH1F("hiChip", "ChipID",            100, 0x00, 0xfff );
+  TH1F* hiChip = new TH1F("ChipID", "ChipID",          100, 0x0, 0xfff );
   hiChip->SetFillColor(48);
 
-  TH1F* hiCRC = new TH1F("hiCRC",   "CRC",               100, 0x00, 0xffff );
+  TH1F* hiFlag = new TH1F("Flag"  , "Flag",            100, 0x0, 0xf );
+  hiFlag->SetFillColor(48);
+
+  TH1F* hiCRC = new TH1F("CRC",     "CRC",             100, 0x0, 0xffff );
   hiCRC->SetFillColor(48);
 
-  // Booking of 128 histograms for each VFAT2 channel
-  TH1F* hiCh128 = new TH1F("hiCh128", "all channels",    128, 0.,   128. );
+  // Booking of all 128 histograms for each VFAT2 channel
+  TH1F* hiCh128 = new TH1F("Ch128", "all channels",      128, 0.,   128. );
   hiCh128->SetFillColor(48);
 
   stringstream histName, histTitle;
@@ -309,9 +312,9 @@ TFile* thldread(Int_t get=0)
     histos[hi] = new TH1F(histName.str().c_str(), histTitle.str().c_str(), 100, 0., 0xf );
   }
 
-  const Int_t ieventPrint = 1;
+  const Int_t ieventPrint = 3;
   const Int_t ieventMax   = 9000000;
-  const Int_t kUPDATE     = 100;
+  const Int_t kUPDATE     = 10;
 
   for(int ievent=0; ievent<ieventMax; ievent++){
     if(inpf.eof()) break;
@@ -332,6 +335,7 @@ TFile* thldread(Int_t get=0)
 
       uint8_t   b1010  = (0xf000 & vfat.BC) >> 12;
       uint8_t   b1100  = (0xf000 & vfat.EC) >> 12;
+      uint8_t   Flag   = (0x000f & vfat.EC);
       uint8_t   b1110  = (0xf000 & vfat.ChipID) >> 12;
       uint16_t  ChipID = (0x0fff & vfat.ChipID);
       uint16_t  CRC    = vfat.crc;
@@ -343,8 +347,9 @@ TFile* thldread(Int_t get=0)
       hiVFAT->Fill(ivfat);
       hi1010->Fill(b1010);
       hi1100->Fill(b1100);
+      hiFlag->Fill(Flag);
       hi1110->Fill(b1110);
-      /*if (ChipID != 0xded)*/ hiChip->Fill(ChipID);
+      if (ChipID != 0xded) hiChip->Fill(ChipID);
       hiCRC->Fill(CRC);
 
       //I think it would be nice to time this...
@@ -385,13 +390,15 @@ TFile* thldread(Int_t get=0)
       c1->cd(1)->SetLogy(); hiVFAT->Draw();
       c1->cd(2); hi1010->Draw();
       c1->cd(3); hi1100->Draw();
-      c1->cd(4)->SetLogy(); hi1110->Draw();
-      c1->cd(5)->SetLogy(); hiChip->Draw();
-      c1->cd(6)->SetLogy(); hiCRC->Draw();
-      c1->cd(7); hiCh128->Draw();
+      c1->cd(4)->SetLogy(); hiFlag->Draw();
+      c1->cd(5)->SetLogy(); hi1110->Draw();
+      c1->cd(6)->SetLogy(); hiChip->Draw();
+      c1->cd(7)->SetLogy(); hiCRC->Draw();
+      c1->cd(8)->SetLogy(); hiCh128->Draw();
       c1->Update();
     }
 
+  cout<<"ievent "<< ievent <<endl;
   }
   inpf.close();
 
