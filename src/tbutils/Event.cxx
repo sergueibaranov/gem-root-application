@@ -105,7 +105,8 @@ Event::~Event()
 }
 
 //______________________________________________________________________________
-void Event::Build(const short &AmcNo_, const Int_t &LV1ID_, const Int_t &BXID_, const Int_t &DataLgth_, const uint16_t &OrN_, const char &BoardID_, const uint32_t &DAVList_, const uint32_t &BufStat_, const uint8_t &DAVCount_, const unsigned char &FormatVer_, const uint8_t &MP7BordStat_, const std::vector<GEBdata> &gebs_, const uint32_t &EventStat_, const uint32_t &GEBerrFlag_, const uint32_t &crc_, const uint8_t &LV1IDT_, const Int_t &DataLgthT_) 
+//void Event::Build(const short &AmcNo_, const Int_t &LV1ID_, const Int_t &BXID_, const Int_t &DataLgth_, const uint16_t &OrN_, const char &BoardID_, const uint32_t &DAVList_, const uint32_t &BufStat_, const uint8_t &DAVCount_, const unsigned char &FormatVer_, const uint8_t &MP7BordStat_, const std::vector<GEBdata> &gebs_, const uint32_t &EventStat_, const uint32_t &GEBerrFlag_, const uint32_t &crc_, const uint8_t &LV1IDT_, const Int_t &DataLgthT_) 
+void Event::Build(const short &AmcNo_, const Int_t &LV1ID_, const Int_t &BXID_, const Int_t &DataLgth_, const uint16_t &OrN_, const char &BoardID_, const uint32_t &DAVList_, const uint32_t &BufStat_, const uint8_t &DAVCount_, const unsigned char &FormatVer_, const uint8_t &MP7BordStat_, const uint32_t &EventStat_, const uint32_t &GEBerrFlag_, const uint32_t &crc_, const uint8_t &LV1IDT_, const Int_t &DataLgthT_) 
 {
     //Save current Object count
     Int_t ObjectNumber = TProcessID::GetObjectCount();
@@ -121,10 +122,10 @@ void Event::Build(const short &AmcNo_, const Int_t &LV1ID_, const Int_t &BXID_, 
     DAVCount = DAVCount_;
     FormatVer = FormatVer_;
     MP7BordStat = MP7BordStat_;
-    gebs = gebs_;
+    //gebs = gebs_;
     EventStat = EventStat_;
     GEBerrFlag = GEBerrFlag_;
-    nGEBs = gebs.size();
+    //nGEBs = gebs.size();
     crc = crc_;
     LV1IDT = LV1IDT_;
     DataLgthT = DataLgthT_;

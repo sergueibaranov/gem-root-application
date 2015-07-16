@@ -21,7 +21,11 @@
 #include <TInterpreter.h>
 #include <TApplication.h>
 #include <TString.h>
-
+#if defined(__CINT__) && !defined(__MAKECINT__)
+#include "libEvent.so"
+#else
+#include "Event.h"
+#endif
 /**
 * ... Threshold Scan ROOT based application, could be used for analisys of XDAQ GEM data ...
 */
@@ -276,6 +280,8 @@ TFile* thldread(Int_t get=0)
   TFile* hfile = NULL;
   hfile = new TFile(filename,"RECREATE","Threshold Scan ROOT file with histograms");
 
+  TTree GEMtree("GEMtree","A Tree with GEM Events");
+
   TH1F* hiVFAT = new TH1F("VFAT", "Number VFAT per event", 100, (Double_t)-0.5,(Double_t)300.5 );
   hiVFAT->SetFillColor(48);
 
@@ -316,6 +322,9 @@ TFile* thldread(Int_t get=0)
   const Int_t ieventMax   = 9000000;
   const Int_t kUPDATE     = 10;
 
+    Event *ev = new Event(); 
+    GEMtree.Branch("GEMEvents", &ev);
+
   for(int ievent=0; ievent<ieventMax; ievent++){
     if(inpf.eof()) break;
     if(!inpf.good()) break;
@@ -330,6 +339,8 @@ TFile* thldread(Int_t get=0)
     uint64_t ChamID  = (0x000000fff0000000 & geb.header) >> 28; 
     uint64_t sumVFAT = (0x000000000fffffff & geb.header);
 
+    GEBdata *GEBdata_ = new GEBdata(ZSFlag, ChamID);
+
     for(int ivfat=0; ivfat<sumVFAT; ivfat++){
       Online.readEvent(inpf, ievent, vfat);
 
@@ -340,6 +351,10 @@ TFile* thldread(Int_t get=0)
       uint16_t  ChipID = (0x0fff & vfat.ChipID);
       uint16_t  CRC    = vfat.crc;
 
+     VFATdata *VFATdata_ = new VFATdata(b1010, b1100, Flag, b1110, ChipID, CRC);
+     GEBdata_->addVFATData(*VFATdata_);
+     delete VFATdata_;
+
      /*
       * GEM Event Analyse
       */
@@ -349,7 +364,7 @@ TFile* thldread(Int_t get=0)
       hi1100->Fill(b1100);
       hiFlag->Fill(Flag);
       hi1110->Fill(b1110);
-      if (ChipID != 0xded) hiChip->Fill(ChipID);
+      if (ChipID != 0xdead) hiChip->Fill(ChipID);
       hiCRC->Fill(CRC);
 
       //I think it would be nice to time this...
@@ -379,6 +394,13 @@ TFile* thldread(Int_t get=0)
     uint64_t OHcrc      = (0xffff000000000000 & geb.trailer) >> 48; 
     uint64_t OHwCount   = (0x0000ffff00000000 & geb.trailer) >> 32; 
     uint64_t ChamStatus = (0x00000000ffff0000 & geb.trailer) >> 16;
+
+    GEBdata_->setTrailer(OHcrc, OHwCount, ChamStatus);
+
+    ev->Build(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+    ev->addGEBdata(*GEBdata_);
+    GEMtree.Fill();
+    ev->Clear();
 
     if(ievent <= ieventPrint){
       cout << "GEM Camber Treiler: OHcrc " << hex << OHcrc << " OHwCount " << OHwCount << " ChamStatus " << ChamStatus << dec 

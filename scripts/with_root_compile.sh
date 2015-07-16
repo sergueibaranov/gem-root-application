@@ -6,7 +6,7 @@ fi
 
 if [ -r $1 ]; then
   echo $1 "will compile soon"
-  g++ -g -std=c++0x -I /usr/include/root $1 `root-config --libs --glibs` -o myexe
+  g++ -g -std=c++0x -I /usr/include/root $1 `root-config --libs --glibs` -L/home/mdalchen/private/gem-root-application/src/tbutils/ -lEvent -o myexe
   ls -ltF myexe
 else
   echo "any file for compilation is missing"
