@@ -21,7 +21,11 @@
 #include <TInterpreter.h>
 #include <TApplication.h>
 #include <TString.h>
-
+#if defined(__CINT__) && !defined(__MAKECINT__)
+#include "libEvent.so"
+#else
+#include "Event.h"
+#endif
 /**
 * ... Threshold Scan ROOT based application, could be used for analisys of XDAQ GEM data ...
 */
@@ -330,7 +334,10 @@ TFile* thldread(Int_t get=0)
   TFile* hfile = NULL;
   hfile = new TFile(filename,"RECREATE","Threshold Scan ROOT file with histograms");
 
-  TH1F* hiVFAT = new TH1F("VFAT", "Number VFAT per event", 100,  0., 10. );
+  TTree GEMtree("GEMtree","A Tree with GEM Events");
+
+  TH1F* hiVFAT = new TH1F("VFAT", "Number VFAT per event", 100, -0.5, 100. );
+
   hiVFAT->SetFillColor(48);
 
   TH1C* hi1010 = new TH1C("1010", "Control Bits 1010", 100, 0x0, 0xf );
@@ -374,6 +381,9 @@ TFile* thldread(Int_t get=0)
   const Int_t kUPDATE     = 50;
   bool OKpri = false;
 
+  Event *ev = new Event(); 
+  GEMtree.Branch("GEMEvents", &ev);
+
   for(int ievent=0; ievent<ieventMax; ievent++){
     OKpri = OKprint(ievent,ieventPrint);
     if(inpf.eof()) break;
@@ -388,6 +398,8 @@ TFile* thldread(Int_t get=0)
     uint64_t ZSFlag  = (0xffffff0000000000 & geb.header) >> 40; 
     uint64_t ChamID  = (0x000000fff0000000 & geb.header) >> 28; 
     uint64_t sumVFAT = (0x000000000fffffff & geb.header);
+
+    GEBdata *GEBdata_ = new GEBdata(ZSFlag, ChamID);
 
     for(int ivfat=0; ivfat<sumVFAT; ivfat++){
 
@@ -405,10 +417,33 @@ TFile* thldread(Int_t get=0)
   
       if ( (b1010 == 0xa) && (b1100==0xc) && (b1110==0xe) /* && (ChipID==0x68) */ ){
 
-        if(OKpri){
-          cout << "\nvfat.lsData " << std::setfill('0') << std::setw(16) << hex << vfat.lsData  
-               << " vfat.msData " << std::setfill('0') << std::setw(16) << vfat.msData 
-               << " ChipID 0x" << std::setfill('0') << std::setw(3) << ChipID << dec << "\n" << endl;
+      VFATdata *VFATdata_ = new VFATdata(b1010, b1100, Flag, b1110, ChipID, CRC);
+      GEBdata_->addVFATData(*VFATdata_);
+      delete VFATdata_;
+
+     /*
+      * GEM Event Analyse
+      */
+
+      hiVFAT->Fill(ivfat);
+      hi1010->Fill(b1010);
+      hi1100->Fill(b1100);
+      hiFlag->Fill(Flag);
+      hi1110->Fill(b1110);
+      if (ChipID != 0xdead) hiChip->Fill(ChipID);
+      hiCRC->Fill(CRC);
+
+      //I think it would be nice to time this...
+      uint8_t chan0xf = 0;
+      for (int chan = 0; chan < 128; ++chan) {
+        if (chan < 64){
+          chan0xf = ((vfat.lsData >> chan) & 0x1);
+  	  histos[chan]->Fill(chan0xf);
+	  if(!chan0xf) hiCh128->Fill(chan);
+	} else {
+          chan0xf = ((vfat.lsData >> (chan-64)) & 0x1);
+  	  histos[chan]->Fill(chan0xf);
+	  if(!chan0xf) hiCh128->Fill(chan);
         }
   
         // CRC check
@@ -473,6 +508,18 @@ TFile* thldread(Int_t get=0)
     uint64_t OHcrc      = (0xffff000000000000 & geb.trailer) >> 48; 
     uint64_t OHwCount   = (0x0000ffff00000000 & geb.trailer) >> 32; 
     uint64_t ChamStatus = (0x00000000ffff0000 & geb.trailer) >> 16;
+
+    GEBdata_->setTrailer(OHcrc, OHwCount, ChamStatus);
+
+    ev->Build(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+    ev->addGEBdata(*GEBdata_);
+    GEMtree.Fill();
+    ev->Clear();
+
+    if(OKpri){
+      cout << "GEM Camber Treiler: OHcrc " << hex << OHcrc << " OHwCount " << OHwCount << " ChamStatus " << ChamStatus << dec 
+           << " ievent " << ievent << endl;
+    }
 
     if (ievent%kUPDATE == 0 && ievent != 0) {
       c1->cd(1)->SetLogy(); hiVFAT->Draw();
